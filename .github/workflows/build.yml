@@ -1,27 +1,70 @@
 name: Build
 on:
   workflow_dispatch:
-      inputs:
-        package_name:
-          description: "Package name of the game:"
-          required: true
+    inputs:
+      package_name:
+        description: "Package name của game (VD: com.goo.lagme)"
+        required: true
+        default: "com.game.packagename"
+      target_library:
+        description: "Tên library cần dump (VD: libMod.so hoặc libil2cpp.so)"
+        required: true
+        default: "libil2cpp.so"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-java@v3
-      with:
-        distribution: temurin
-        java-version: 11
-        cache: gradle
-    - run: |
-        chmod +x ./gradlew
-        sed -i 's/moduleDescription = "/moduleDescription = "(${{ github.event.inputs.package_name }}) /g' module.gradle
-        sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" module/src/main/cpp/game.h
-        ./gradlew :module:assembleRelease
-    - uses: actions/upload-artifact@v4
-      with:
-        name: zygisk-il2cppdumper
-        path: out/magisk_module_release/
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+          cache: gradle
+
+      - name: Inject config vào source code
+        run: |
+          PKG="${{ github.event.inputs.package_name }}"
+          LIB="${{ github.event.inputs.target_library }}"
+
+          # Patch game.h
+          sed -i "s/com.game.packagename/${PKG}/g" module/src/main/cpp/game.h
+
+          # Ghi lại toàn bộ config.h với giá trị hardcode, bỏ phần đọc file runtime
+          cat > module/src/main/cpp/config.h << CFGEOF
+#ifndef ZYGISK_IL2CPPDUMPER_CONFIG_H
+#define ZYGISK_IL2CPPDUMPER_CONFIG_H
+#include <string>
+#include "log.h"
+struct Config {
+    std::string packageName;
+    std::string targetLibrary;
+};
+static Config ReadConfig() {
+    Config config;
+    config.packageName = "${PKG}";
+    config.targetLibrary = "${LIB}";
+    LOGI("Config: package=%s, library=%s", config.packageName.c_str(), config.targetLibrary.c_str());
+    return config;
+}
+#endif
+CFGEOF
+
+          # Patch module description
+          sed -i "s/moduleDescription = \"/moduleDescription = \"(${PKG} | ${LIB}) /g" module.gradle
+
+          echo "=== Verify game.h ==="
+          cat module/src/main/cpp/game.h
+          echo "=== Verify config.h ==="
+          cat module/src/main/cpp/config.h
+
+      - name: Build module
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :module:assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zygisk-il2cppdumper-${{ github.event.inputs.package_name }}
+          path: out/magisk_module_release/

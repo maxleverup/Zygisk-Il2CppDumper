@@ -1,0 +1,215 @@
+ZYGISK IL2CPPDUMPER - MODIFIED VERSION
+=====================================
+
+Files Organization:
+───────────────────────────────────────────────────────────────
+
+📦 PACKAGE CONTENTS (10 Files)
+│
+├─ 📄 Source Code (4 files - C++ code modifications)
+│  ├─ config.h                     [NEW] - Config file reader
+│  ├─ main_modified.cpp           [MODIFY] - Load config, detect package
+│  ├─ hack_modified.cpp           [MODIFY] - Dynamic library loading
+│  └─ hack_modified.h             [MODIFY] - Updated signatures
+│
+├─ 📖 Documentation (5 files - Guides & References)
+│  ├─ README.md                   [MAIN] - Complete overview
+│  ├─ QUICK_START.md              [FAST] - 5-minute setup
+│  ├─ INTEGRATION_GUIDE.md        [DETAIL] - Line-by-line merge
+│  ├─ USAGE_GUIDE_VI.md           [USER] - End-user guide
+│  ├─ VISUAL_GUIDE.md             [VISUAL] - Diagrams & flows
+│  └─ FILES_SUMMARY.md            [INDEX] - This summary
+│
+└─ 🔧 Automation (1 file - Auto integration)
+   └─ integrate.sh                [SCRIPT] - Auto-merge all changes
+
+───────────────────────────────────────────────────────────────
+
+USAGE FLOW:
+───────────────────────────────────────────────────────────────
+
+APPROACH 1: FASTEST (Script Auto-Integration)
+┌─────────────────────────────────────────────┐
+│ 1. Copy integrate.sh to project root        │
+│ 2. chmod +x integrate.sh && ./integrate.sh │
+│ 3. ./gradlew clean build                   │
+│ 4. Deploy & test                           │
+│    ✓ 10 minutes total                      │
+└─────────────────────────────────────────────┘
+
+APPROACH 2: DETAILED (Manual Merge)
+┌─────────────────────────────────────────────┐
+│ 1. Read INTEGRATION_GUIDE.md                │
+│ 2. Manually copy config.h                   │
+│ 3. Merge main_modified.cpp → main.cpp       │
+│ 4. Merge hack_modified.cpp → hack.cpp       │
+│ 5. Merge hack_modified.h → hack.h           │
+│ 6. ./gradlew clean build                   │
+│ 7. Deploy & test                           │
+│    ✓ 30 minutes total                      │
+└─────────────────────────────────────────────┘
+
+APPROACH 3: UNDERSTANDING (Step-by-step)
+┌─────────────────────────────────────────────┐
+│ 1. Read README.md (overview)                │
+│ 2. Read VISUAL_GUIDE.md (diagrams)          │
+│ 3. Read INTEGRATION_GUIDE.md (detailed)     │
+│ 4. Read USAGE_GUIDE_VI.md (end-user)        │
+│ 5. Manual merge or use script               │
+│ 6. Build, deploy, test                      │
+│    ✓ 45 minutes total                      │
+└─────────────────────────────────────────────┘
+
+───────────────────────────────────────────────────────────────
+
+FEATURE COMPARISON:
+───────────────────────────────────────────────────────────────
+
+OLD VERSION (Original):
+  ❌ Hardcoded package name: "com.game.packagename"
+  ❌ Hardcoded library: "libil2cpp.so" only
+  ❌ Must modify code to change target
+  ❌ Rebuild for each new package
+  ✓ Simple but inflexible
+
+NEW VERSION (Modified):
+  ✅ Dynamic package name from config file
+  ✅ Support ANY library (libMod.so, libUnity.so, etc.)
+  ✅ No code changes needed (file-based config)
+  ✅ One build, multiple targets
+  ✅ User-friendly & flexible
+
+───────────────────────────────────────────────────────────────
+
+KEY CHANGES SUMMARY:
+───────────────────────────────────────────────────────────────
+
+1. NEW FILE: config.h
+   - Reads /data/local/tmp/il2cpp_dumper_config.txt
+   - Parses PACKAGE_NAME and TARGET_LIBRARY
+   - Returns Config struct with both values
+
+2. MODIFIED: main.cpp
+   - Includes config.h
+   - Calls ReadConfig() in onLoad()
+   - Uses config.packageName instead of GamePackageName
+   - Passes target_library to hack_prepare()
+
+3. MODIFIED: hack.cpp
+   - hack_start() now takes target_library parameter
+   - xdl_open(target_library) instead of "libil2cpp.so"
+   - hack_prepare() passes target_library through
+   - NativeBridgeLoad() receives target_library
+
+4. MODIFIED: hack.h
+   - Updated function signature to include target_library
+
+───────────────────────────────────────────────────────────────
+
+EXAMPLE USAGE:
+───────────────────────────────────────────────────────────────
+
+CREATE CONFIG:
+  adb shell "cat > /data/local/tmp/il2cpp_dumper_config.txt << 'EOF'
+  PACKAGE_NAME=com.goo.lagme
+  TARGET_LIBRARY=libMod.so
+  EOF"
+
+TRIGGER:
+  adb shell am start -n com.goo.lagme/.MainActivity
+
+MONITOR:
+  adb logcat | grep "detect game\|loaded\|dump done"
+
+RETRIEVE:
+  adb pull /data/data/com.goo.lagme/files/dump.cs
+
+───────────────────────────────────────────────────────────────
+
+SUPPORTED TARGETS:
+───────────────────────────────────────────────────────────────
+
+✓ libil2cpp.so      (default, Unity games)
+✓ libMod.so         (any custom library)
+✓ libUnity.so       (Unity native)
+✓ libMyLib.so       (any *.so file)
+✓ libc++_shared.so  (C++ runtime)
+✓ Any native library in the app
+
+───────────────────────────────────────────────────────────────
+
+REQUIREMENTS:
+───────────────────────────────────────────────────────────────
+
+✓ Android device (rooted)
+✓ Magisk installed
+✓ Zygisk enabled
+✓ ADB access
+✓ Target app with IL2CPP backend
+✓ Zygisk-Il2CppDumper project
+
+───────────────────────────────────────────────────────────────
+
+TROUBLESHOOTING QUICK REFERENCE:
+───────────────────────────────────────────────────────────────
+
+Problem          | Check              | Solution
+─────────────────┼────────────────────┼──────────────────
+"not found"      | Package name       | Verify in config
+Library fail     | Library name       | Check app /lib folder
+No output        | Config path        | /data/local/tmp/...
+Compile error    | Includes           | #include "config.h"
+Permission deny  | /data/data perms   | Check file location
+
+See USAGE_GUIDE_VI.md for detailed troubleshooting.
+
+───────────────────────────────────────────────────────────────
+
+NEXT STEPS:
+───────────────────────────────────────────────────────────────
+
+1. Choose your approach:
+   □ FASTEST: Use integrate.sh
+   □ LEARN: Read INTEGRATION_GUIDE.md
+   □ UNDERSTAND: Read all documentation
+
+2. Integrate files into Zygisk project
+
+3. Build with ./gradlew clean build
+
+4. Create config file:
+   PACKAGE_NAME=com.your.app
+   TARGET_LIBRARY=libYour.so
+
+5. Deploy & test
+
+6. Retrieve /data/data/com.your.app/files/dump.cs
+
+───────────────────────────────────────────────────────────────
+
+DOCUMENTATION INDEX:
+───────────────────────────────────────────────────────────────
+
+START HERE:
+  → README.md (complete overview)
+  → QUICK_START.md (5-minute setup)
+
+FOR INTEGRATION:
+  → INTEGRATION_GUIDE.md (detailed merge)
+  → integrate.sh (auto-merge script)
+
+FOR UNDERSTANDING:
+  → VISUAL_GUIDE.md (diagrams & flows)
+  → USAGE_GUIDE_VI.md (usage details)
+
+FOR REFERENCE:
+  → FILES_SUMMARY.md (this file)
+  → config.h (config structure)
+  → main_modified.cpp (example implementation)
+
+───────────────────────────────────────────────────────────────
+
+Version: 2.0
+Status: Complete & Ready to Use ✅
+Last Updated: June 2025
+

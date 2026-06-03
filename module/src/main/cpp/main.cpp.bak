@@ -10,7 +10,6 @@
 #include "zygisk.hpp"
 #include "game.h"
 #include "log.h"
-#include "config.h"
 
 using zygisk::Api;
 using zygisk::AppSpecializeArgs;
@@ -21,8 +20,6 @@ public:
     void onLoad(Api *api, JNIEnv *env) override {
         this->api = api;
         this->env = env;
-        // Load config at module load time
-        this->config = ReadConfig();
     }
 
     void preAppSpecialize(AppSpecializeArgs *args) override {
@@ -35,7 +32,7 @@ public:
 
     void postAppSpecialize(const AppSpecializeArgs *) override {
         if (enable_hack) {
-            std::thread hack_thread(hack_prepare, game_data_dir, data, length, target_library);
+            std::thread hack_thread(hack_prepare, game_data_dir, data, length);
             hack_thread.detach();
         }
     }
@@ -45,24 +42,15 @@ private:
     JNIEnv *env;
     bool enable_hack;
     char *game_data_dir;
-    char *target_library;
     void *data;
     size_t length;
-    Config config;
 
     void preSpecialize(const char *package_name, const char *app_data_dir) {
-        // Check against configured package name
-        LOGI("Current package: %s, Target package: %s", package_name, config.packageName.c_str());
-        
-        if (strcmp(package_name, config.packageName.c_str()) == 0) {
+        if (strcmp(package_name, GamePackageName) == 0) {
             LOGI("detect game: %s", package_name);
             enable_hack = true;
             game_data_dir = new char[strlen(app_data_dir) + 1];
             strcpy(game_data_dir, app_data_dir);
-            
-            // Copy target library name
-            target_library = new char[config.targetLibrary.length() + 1];
-            strcpy(target_library, config.targetLibrary.c_str());
 
 #if defined(__i386__)
             auto path = "zygisk/armeabi-v7a.so";

@@ -6,6 +6,7 @@
 #include "il2cpp_dump.h"
 #include "log.h"
 #include "xdl.h"
+#include "config.h"
 #include <cstring>
 #include <cstdio>
 #include <unistd.h>
@@ -205,12 +206,10 @@ void hack_prepare(const char *game_data_dir, void *data, size_t length, const ch
 }
 
 #if defined(__arm__) || defined(__aarch64__)
-
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
-    // Note: reserved can now be game_data_dir (first call) or contain target library info
     auto game_data_dir = (const char *) reserved;
-    // Use default library name for ARM native bridge case
-    const char *target_lib = "libil2cpp.so";
+    Config config = ReadConfig();
+    const char *target_lib = config.targetLibrary.c_str();
     std::thread hack_thread(hack_start, game_data_dir, target_lib);
     hack_thread.detach();
     return JNI_VERSION_1_6;
